@@ -8,10 +8,22 @@ def load_daily_data(start_date, end_date):
     valid_stocks = set()  # 记录第一天的股票池
     first_day = True  # 标记是否为第一天
 
-    for date in trade_dates:
-        df = pro.daily(trade_date=date)  # 获取当天数据
-        filtered_df = df[df["ts_code"].str.startswith(("000", "600"))]  # 筛选000/600开头的股票
-
+    for date in tqdm(trade_dates, desc="Loading data"):
+        while True:
+            try_times = 5
+            df = pro.daily(trade_date=date)  # 获取当天数据
+            if not df.empty:
+                break
+            else:
+                print(f"Empty data on {date}, retrying...")
+                try_times -= 1
+                if try_times == 0:
+                    raise TimeoutError(f"Empty data on {date}")
+        try:
+            filtered_df = df[df["ts_code"].str.startswith(("000", "600"))]  # 筛选000/600开头的股票
+        except Exception as e:
+            print(df)
+            raise e
         if first_day:
             # 记录第一天的所有股票代码，并存入 stock_dict
             valid_stocks = set(filtered_df["ts_code"])  # 记录基准股票池
@@ -39,7 +51,7 @@ def load_daily_data(start_date, end_date):
 def load_information(stock_dict):
     
     information_dict = {}
-    for ts_code in tqdm(stock_dict.keys()):
+    for ts_code in tqdm(stock_dict.keys(), desc="Loading information"):
         code = ts_code.split(".")[0]
         info = get_infomation(code)
         information_dict[ts_code] = {
@@ -52,12 +64,10 @@ def load_information(stock_dict):
 def save_to_json(start_date,end_date, filename="stock_data.json",information_file = "information.json"):
     stock_dict = load_daily_data(start_date, end_date)
     infomation_dict = load_information(stock_dict)
-    print(infomation_dict)
     # 转换 stock_dict 为可以写入 JSON 的格式
     data_to_write = {}
     for ts_code, stock_data in stock_dict.items():
         # 转换 DataFrame 为字典列表
-        print(infomation_dict[ts_code])
         stock_data_list = stock_data['data'].to_dict(orient='records')
         data_to_write[ts_code] = {
             "name": infomation_dict[ts_code]["name"],
@@ -71,5 +81,6 @@ def save_to_json(start_date,end_date, filename="stock_data.json",information_fil
         json.dump(data_to_write, f, ensure_ascii=False, indent=4)  # 使用 indent 格式化输出
     with open(information_file, 'w', encoding='utf-8') as f:
         json.dump(infomation_dict, f, ensure_ascii=False, indent=4)  # 使用 indent 格式化输出
+
 if __name__ == '__main__':
     save_to_json("20220101", "20250226", "full_data/stock_data.json", "full_data/information.json")
