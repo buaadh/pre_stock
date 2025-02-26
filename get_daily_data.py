@@ -72,4 +72,4 @@ def save_to_json(start_date,end_date, filename="stock_data.json",information_fil
     with open(information_file, 'w', encoding='utf-8') as f:
         json.dump(infomation_dict, f, ensure_ascii=False, indent=4)  # 使用 indent 格式化输出
 if __name__ == '__main__':
-    save_to_json("20210101", "20210131", "stock_data_january.json")
+    save_to_json("20220101", "20250226", "full_data/stock_data.json", "full_data/information.json")
